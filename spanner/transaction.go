@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 
 	vkit "cloud.google.com/go/spanner/apiv1"
 )
@@ -1417,6 +1418,7 @@ type CommitResponse struct {
 // CommitOptions provides options for committing a transaction in a database.
 type CommitOptions struct {
 	ReturnCommitStats bool
+	MaxBatchingDelay time.Duration
 }
 
 // merge combines two CommitOptions that the input parameter will have higher
@@ -1424,6 +1426,7 @@ type CommitOptions struct {
 func (co CommitOptions) merge(opts CommitOptions) CommitOptions {
 	return CommitOptions{
 		ReturnCommitStats: co.ReturnCommitStats || opts.ReturnCommitStats,
+		MaxBatchingDelay: opts.MaxBatchingDelay,
 	}
 }
 
@@ -1470,6 +1473,7 @@ func (t *ReadWriteTransaction) commit(ctx context.Context, options CommitOptions
 		RequestOptions:    createRequestOptions(t.txOpts.CommitPriority, "", t.txOpts.TransactionTag),
 		Mutations:         mPb,
 		ReturnCommitStats: options.ReturnCommitStats,
+		MaxBatchingDelay: durationpb.New(options.MaxBatchingDelay)
 	}, gax.WithGRPCOptions(grpc.Header(&md)))
 	if getGFELatencyMetricsFlag() && md != nil && t.ct != nil {
 		if err := createContextAndCaptureGFELatencyMetrics(ctx, t.ct, md, "commit"); err != nil {
